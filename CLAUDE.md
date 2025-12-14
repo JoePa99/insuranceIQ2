@@ -1,49 +1,117 @@
-# InsuranceIQ - AI Insurance Research Tool
+# InsuranceIQ - AI Insurance Recommendation Tool
 
 ## Project Overview
 
-InsuranceIQ is an AI-powered insurance research and recommendation tool designed for independent insurance agents. It automates the research process that agents typically do manually - analyzing declaration pages, researching properties, and identifying coverage gaps.
+An AI-powered tool for independent insurance agents that:
+1. Takes client information (name/address for personal lines, company name for commercial)
+2. Researches and enriches the client profile
+3. Analyzes insurance needs and identifies coverage gaps
+4. Recommends appropriate coverage types and endorsements
+5. Matches to carriers with appetite for the risk
+6. Pulls comparative quotes where API access allows
 
-**Core Philosophy**: This is a research agent, not an API integration. If a human researcher with a browser could find it, AI can find it. No external APIs needed for Phase 1.
+**Target User:** Independent insurance agent in North Carolina (expandable to other states)
 
-## Architecture
+**Regulatory Constraint:** All recommendations must flow through the licensed agent. This is an agent-facing tool, not consumer-facing.
+
+**Core Philosophy:** This is a research agent, not an API integration. If a human researcher with a browser could find it, AI can find it. No external APIs needed for Phase 1.
+
+## Build Sequence
+
+### Phase 1: Personal Lines MVP (Current Focus)
+- [x] Dec page parser (PDF/image extraction with Claude vision)
+- [x] Property research (Claude + web search)
+- [x] AI coverage gap analysis
+- [x] CLI for testing
+- [ ] Client data intake (name, address, basic info)
+- [ ] Web frontend (React/Next.js)
+- [ ] Endorsement recommendations
+- [ ] Carrier matching based on client profile
+
+### Phase 2: Small Commercial
+- Company enrichment via Apollo.io/Clearbit
+- AI risk analysis and insurance needs assessment
+- Ask Kodiak integration for carrier appetite
+- Bold Penguin or Tarmika integration for quoting
+
+### Phase 3: Specialty Lines
+- Professional liability, cyber, E&O
+- More complex carrier matching logic
+
+## Current Architecture
 
 ```
 insuranceiq/
 ├── src/
 │   ├── parsers/           # Document parsing modules
-│   │   ├── dec_page.py    # Declaration page parser
-│   │   └── __init__.py
+│   │   └── dec_page.py    # Declaration page parser (Claude vision)
 │   ├── research/          # Research modules
-│   │   ├── property.py    # Property research (Zillow, FEMA, etc.)
-│   │   ├── commercial.py  # Commercial business research
-│   │   └── __init__.py
+│   │   ├── property.py    # Property research (web search)
+│   │   └── commercial.py  # Commercial business research (future)
 │   ├── analysis/          # Analysis engines
-│   │   ├── gap_analysis.py
-│   │   └── __init__.py
-│   ├── models/            # Data models
-│   │   ├── policy.py      # Policy data structures
-│   │   ├── property.py    # Property data structures
-│   │   └── __init__.py
-│   └── utils/             # Utilities
-│       ├── pdf.py         # PDF extraction helpers
-│       └── __init__.py
-├── tests/                 # Test files
-├── data/                  # Mock data and samples
-│   └── mock_dec_pages/
-├── analyze.py             # Main CLI entry point
+│   │   └── gap_analysis.py
+│   ├── models/            # Pydantic data models
+│   │   ├── policy.py      # HomeownersPolicy, AutoPolicy
+│   │   └── property.py    # PropertyResearch, RiskFactors
+│   └── utils/
+│       └── pdf.py         # PyMuPDF extraction helpers
+├── data/
+│   └── mock_dec_pages/    # 7 mock scenarios for testing
+├── tests/
+├── analyze.py             # CLI entry point
 ├── requirements.txt
 └── CLAUDE.md
 ```
 
 ## Technology Stack
 
-- **Python 3.11+**
-- **PyMuPDF (fitz)**: PDF text extraction
-- **anthropic**: Claude API for vision analysis and AI reasoning
-- **Pydantic**: Data validation and models
-- **Click**: CLI framework
-- **Rich**: Beautiful terminal output
+**Current (Phase 1 CLI):**
+- Python 3.11+
+- PyMuPDF (fitz): PDF text extraction
+- anthropic: Claude API for vision analysis and web search
+- Pydantic: Data validation and models
+- Click: CLI framework
+- Rich: Terminal output formatting
+
+**Future (Web App):**
+- Backend: Python with FastAPI
+- Frontend: React with TypeScript, Tailwind CSS
+- Database: PostgreSQL
+- Cache: Redis for API responses
+
+## API Keys Needed
+
+```bash
+# Required for Phase 1
+ANTHROPIC_API_KEY=         # Self-serve: console.anthropic.com
+
+# Future integrations (Phase 2+)
+CANOPY_CLIENT_ID=          # Self-serve: usecanopy.com ($100/mo)
+CANOPY_CLIENT_SECRET=
+APOLLO_API_KEY=            # Self-serve: apollo.io (free tier)
+GOOGLE_PLACES_API_KEY=     # Self-serve: Google Cloud Console
+```
+
+## What's Self-Serve vs. Requires Partnerships
+
+**Self-Serve (build now):**
+- Claude API - AI analysis and web search
+- Canopy Connect - existing policy data pull ($100/mo)
+- Apollo.io - company enrichment (free tier)
+- Google Places - business verification
+- Public records - NC SOS, county property data
+
+**Manual Workarounds (no API needed):**
+- Carrier appetite - build your own database
+- Quoting - export to agent's existing rater (EZLynx, etc.)
+- Commercial submissions - pre-fill ACORD forms
+
+**Future Partnerships (after MVP proves value):**
+- Zywave PL Quoting API
+- Ask Kodiak
+- Bold Penguin/Tarmika
+
+---
 
 ## Insurance Domain Knowledge
 
@@ -112,6 +180,8 @@ insuranceiq/
 - NC FAIR Plan (last resort)
 - Various surplus lines for difficult risks
 
+---
+
 ## Data Models
 
 ### Declaration Page Data (Homeowners)
@@ -155,19 +225,10 @@ insuranceiq/
     "comprehensive": {"deductible": 250}
   },
   "vehicles": [
-    {
-      "year": 2022,
-      "make": "Honda",
-      "model": "Accord",
-      "vin": "string"
-    }
+    {"year": 2022, "make": "Honda", "model": "Accord", "vin": "string"}
   ],
   "drivers": [
-    {
-      "name": "string",
-      "age": 45,
-      "license_status": "valid"
-    }
+    {"name": "string", "age": 45, "license_status": "valid"}
   ]
 }
 ```
@@ -204,8 +265,7 @@ insuranceiq/
 }
 ```
 
-## Gap Analysis Output
-
+### Gap Analysis Output
 ```json
 {
   "high_priority_gaps": [
@@ -213,15 +273,15 @@ insuranceiq/
       "issue": "Liability limit inadequate for home value",
       "current": "$100,000",
       "recommended": "$300,000+",
-      "rationale": "Home valued at $350K+ suggests assets that need protection. Current $100K liability leaves significant exposure.",
+      "rationale": "Home valued at $350K+ suggests assets that need protection.",
       "action": "Increase liability to minimum $300K, discuss umbrella policy"
     }
   ],
-  "medium_priority_gaps": [...],
+  "medium_priority_gaps": [],
   "considerations": [
     {
       "question": "Does the client have a swimming pool?",
-      "why_it_matters": "Satellite imagery suggests possible pool. Pools increase liability exposure and may require additional coverage or higher limits.",
+      "why_it_matters": "Pools increase liability exposure.",
       "if_yes": "Recommend $500K+ liability, consider umbrella"
     }
   ],
@@ -235,35 +295,59 @@ insuranceiq/
 }
 ```
 
-## Development Notes
+---
 
-### Running the CLI
+## CLI Usage
+
 ```bash
-# Full analysis
-python analyze.py --address "123 Main St, Winston-Salem, NC" --dec-page ./dec.pdf
+# Full analysis with real data (requires ANTHROPIC_API_KEY)
+python analyze.py --address "123 Main St, Winston-Salem, NC" --dec-page ./sample.pdf
 
 # Property research only
-python analyze.py --address "123 Main St, Winston-Salem, NC" --property-only
+python analyze.py --address "456 Beach Rd, Wilmington, NC" --property-only
 
 # Parse dec page only
-python analyze.py --dec-page ./dec.pdf --parse-only
+python analyze.py --dec-page ./sample.pdf --parse-only
+
+# Test with mock scenarios (no API key needed)
+python analyze.py --mock-scenario low-liability
+python analyze.py --mock-scenario acv-dwelling
+python analyze.py --mock-scenario flood-zone
+python analyze.py --mock-scenario no-umbrella
+python analyze.py --mock-scenario well-covered
+
+# Output formats: rich (default), json, markdown
+python analyze.py --mock-scenario low-liability --output json
 ```
 
-### Environment Variables
-```
-ANTHROPIC_API_KEY=your_key_here
-```
+## Mock Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| `low-liability` | $450K home with only $100K liability |
+| `acv-dwelling` | Older home with ACV instead of replacement cost |
+| `no-water-backup` | Good coverage but missing water backup |
+| `flood-zone` | Coastal property in flood zone without flood insurance |
+| `no-umbrella` | High-value home without umbrella |
+| `minimal-auto` | NC minimum auto limits |
+| `well-covered` | Example of proper coverage for comparison |
+
+---
+
+## Development Notes
+
+- Keep responses concise and agent-focused
+- Don't over-engineer - this is MVP
+- Focus on the AI analysis layer first; that's the differentiated value
+- Real quoting APIs require partnerships; mock them initially
+- Log all AI recommendations for E&O protection
 
 ### Testing
 ```bash
 pytest tests/ -v
 ```
 
-## Phase 2 Ideas (Future)
-
-- Web frontend with Next.js
-- Commercial lines analysis
-- Carrier appetite matching
-- Quote comparison automation
-- Client portal for document upload
-- Integration with agency management systems
+### Sample Test Addresses
+- `123 Main St, Winston-Salem, NC` - Suburban single family
+- `456 Beach Rd, Wilmington, NC` - Coastal, flood zone
+- `789 Mountain View Dr, Asheville, NC` - Mountain market
